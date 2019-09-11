@@ -1,0 +1,14 @@
+.stack-work/
+pcl-compiler.cabal
+.stack-work/
+.ghci
+*.hi
+*.o
+dist-newstyle/
+dist/
+.ghc.environment.*
+stack.yaml.lock
+*~
+*.swp
+
+*~

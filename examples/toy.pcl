@@ -1,0 +1,107 @@
+
+program solve;
+
+var x : integer;
+
+begin
+    begin
+        return
+    end
+end.
+
+(*
+
+procedure hanoi (var source : integer; target : integer;
+    auxiliary : array of char; rings : integer);
+
+    procedure move (var source, target : array of char);
+    begin
+        writeString("Move from ");
+        writeString(source);
+        writeString(" to ");
+        writeString(target);
+        writeString(".\n")
+    end;
+
+begin
+    hanoi(source, auxiliary, target, rings);
+    move(source, target);
+    hanoi(auxiliary, target, source, rings)
+end;
+
+begin
+    writeString("Please, give the number of rings : ");
+    writeString("\nHere is the solution :\n\n");
+    hanoi("left", "right", "middle", numberOfRings)
+end.
+
+
+*)
+(*)
+program hello;
+begin
+writeString("Hello world!\n")
+end.
+*)
+(*
+procedure f1 (var kostas:integer, gianis: array of ^real)
+procedure f1 (var kostas:integer, gianis: array of ^real) : integer
+*)
+(*
+kostas : integer
+var giannis, kai, o, allos : array [2] of integer
+*)
+(*
+array [0] of ^array [2] of integer
+array [2] of integer
+integer boolean real char array of integer ^integer array of ^integer
+array of array of array of array of integer
+*)
+(* + - * / div mod  or and = <> < <= > >= *)
+
+(* let x == 020
+else '\"'
+"a" ""
+in "\t \\ n  \\ \" \' \0 12\" \\ \\n               \" \\ n"
+10.20
+10.20E2
+10.20e2
+10.20E+22
+10.20e+22
+10.20E-2
+10.20e-2
+10.
+
+and
+do
+if
+of
+then
+array
+else
+integer
+or (* *)
+true
+begin
+end
+label
+procedure
+var
+boolean
+false
+mod
+program
+while
+char
+forward
+new
+real
+dispose
+function
+nil
+result
+div
+goto
+not
+return
+*)
