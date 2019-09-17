@@ -9,7 +9,7 @@ import           Prelude         hiding (EQ, GT, LT)
 
 import Language.PCL.Token
 
-data Name a = Name a String deriving (Show, Eq, Functor, Data, Typeable, Generic)
+data Name a = Name a String deriving (Show, Functor, Data, Typeable, Generic)
 
 data Program a = Program a (Name a) (Body a)
     deriving (Show, Eq, Functor, Data, Typeable, Generic)
@@ -30,15 +30,16 @@ data Header a = Procedure a (Name a) [Formal a]
               | Function a (Name a) [Formal a] (Type a)
               deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
-data Formal a = Formal a Bool (Name a) [Name a] (Type a)
+data Formal a = Formal a Bool [Name a] (Type a)
     deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
 data Type a = TInt a | TReal a | TBoolean a | TChar a
-            | TArray (Maybe Int) (Type a)
-            | RefT (Type a)
+            | TArray a (Maybe Int) (Type a)
+            | RefT a (Type a)
+            | TNil a
     deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
-data Block a = Block a (Stm a) [Stm a]
+data Block a = Block a [Stm a]
     deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
 data Stm a = EmptyStm a
@@ -121,6 +122,14 @@ instance Show Silent where
 silent :: Program a -> Program Silent
 silent = fmap (const Silent)
 
+getNamePos :: Name a -> a
+getNamePos (Name a _) = a
+
+instance Eq (Name a) where
+    (Name _ s1) == (Name _ s2) = s1 == s2
+
+instance Ord (Name a) where
+    compare (Name _ a) (Name _ b) = compare a b
 
 class Functor ast => Annotated ast where
     -- | Retrieve the annotation of an AST node.
@@ -129,6 +138,10 @@ class Functor ast => Annotated ast where
     --   the node itself is affected, and not the annotations of any child nodes.
     --   if all nodes in the AST tree are to be affected, use 'fmap'.
     amap :: (l -> l) -> ast l -> ast l
+
+instance Annotated Expr where
+    ann (LExpr p _) = p
+    ann (RExpr p _) = p
 
 -- instance Annotated SubLVal where
 --     ann (SubLValBrac a _) = a

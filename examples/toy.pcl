@@ -1,11 +1,21 @@
 
 program solve;
 
-var x : integer;
+var x : array [2] of char;
+
+function f (var x : array of integer; z,w : real) : integer;
+    begin
+        if 1 = 2 and false then return
+    end;
+
+var z : real;
+var a : array [4] of real;
+var r : ^integer;
+var arr : ^array  of integer;
 
 begin
     begin
-        return
+        if true then return;
     end
 end.
 

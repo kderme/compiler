@@ -68,7 +68,11 @@ local = try $ do
                     n <- name
                     ns <- commas name
                     tok' TokColon
-                    DefIdList pos' (n : ns) <$> typeT
+                    t <- typeT
+                    case isCompleteType t of
+                        Left str -> parserFail str
+                        Right False -> parserFail "type should be complete"
+                        Right True -> return $ DefIdList pos' (n : ns) t
                 tok' TokSemic
                 return $ Var pos [defs]
 
@@ -96,8 +100,8 @@ header :: Parser (Header SourcePos)
 header = do
     pos <- getPosition
     choice
-        [ procedure pos
-        , function pos
+        [ try $ procedure pos
+        , try $ function pos
         ]
         where
             procedure pos = do
@@ -114,10 +118,14 @@ header = do
                 tok' TokLParen
                 mfs <- optionMaybe formals
                 tok' TokRParen
-                Function pos nm (fromMaybeLs mfs) <$> typeT
+                tok' TokColon
+                t <- typeT
+                case t of
+                    TArray {} -> parserFail "The return type of a function can't be array"
+                    _ -> return $ Function pos nm (fromMaybeLs mfs) t
             formals = do
                 f <- formal
-                fs <- semicolons formal
+                fs <- semicolons $ formal
                 return $ f : fs
 
 block :: Parser (Block SourcePos)
@@ -127,7 +135,7 @@ block = do
     s <- stmt
     stmts <- semicolons stmt
     tok' TokEnd
-    return $ Block pos s stmts
+    return $ Block pos (s:stmts)
 
 stmt :: Parser (Stm SourcePos)
 stmt = do
@@ -138,12 +146,12 @@ stmt = do
         , try $ assignStm pos
         , try $ BlockStm pos <$> block
         , try $ CallStm pos <$> call
-        , ifStm pos
-        , whileStm pos
-        , colonStm pos
-        , gotoStm pos
-        , newStm pos
-        , disposeStm pos
+        , try $ ifStm pos
+        , try $ whileStm pos
+        , try $ colonStm pos
+        , try $ gotoStm pos
+        , try $ newStm pos
+        , try $ disposeStm pos
         ]
     case m of
         Just p -> return p
@@ -192,7 +200,7 @@ stmt = do
             NewStm pos me <$> lval
 
         disposeStm pos = do
-            tok' TokNew
+            tok' TokDispose
             bl <- optionMaybe $ do
                 tok' TokLBracket
                 tok' TokRBracket
@@ -224,8 +232,8 @@ sublval :: Parser (SubLVal SourcePos)
 sublval = do
     pos <- getPosition
     m <- try $ optionMaybe $ choice
-        [ bracl pos
-        , powl pos
+        [ try $ bracl pos
+        , try $ powl pos
         ]
     case m of
         Just s -> return s
@@ -242,7 +250,6 @@ sublval = do
             s' <- sublval
             return $ SubLValPow pos s'
 
-
 simplelval :: Parser (LVal SourcePos)
 simplelval = do
     pos <- getPosition
@@ -252,27 +259,16 @@ simplelval = do
         lVal _            = Nothing
     choice
       [ try $ satisfy' (lVal . unToken)
---      , try $ lval' pos
---      , try $ expr' pos
       , try $ paren' pos
       ]
       where
-        lval' pos = do
-            l <- lval
-            tok' TokLBracket
-            e <- expr
-            tok' TokRBracket
-            return $ LValBrac pos l e
-        expr' pos = do
-            e <- expr
-            tok' TokExp
-            return $ LValPow pos e
         paren' pos = do
             tok' TokLParen
             l <- lval
             tok' TokRParen
             return $ LValRec pos l
 
+-- R  -> Rsimple R' | Lsimple L' Bi R'
 rval :: Parser (RVal SourcePos)
 rval = do
     pos <- getPosition
@@ -281,7 +277,7 @@ rval = do
         , try $ lrval pos
         ]
     sub <- subrval
-    return $ toRVal pos r sub
+    return $ fixBiRVal $ toRVal pos r sub
       where
         lrval pos = do
             l <- simplelval
@@ -290,13 +286,15 @@ rval = do
             BiSubRVal _ bi e <- biRVal
             return $ RValBiNop pos (LExpr pos l') bi e
 
+-- 
 biRVal :: Parser (BiSubRVal SourcePos)
 biRVal = do
     pos <- getPosition
     bi <- binop
-    e <- expr
+    e <- fixBiExpr <$> expr
     return $ BiSubRVal pos bi e
 
+-- R' -> "^" L' Bi R' | Bi R' | e
 subrval :: Parser (SubRVal SourcePos)
 subrval = do
     pos <- getPosition
@@ -338,11 +336,11 @@ simplerval :: Parser (RVal SourcePos)
 simplerval = do
     pos <- getPosition
     let ls =
-            [ satisfy' (simple pos . unToken)
-            , rec pos
-            , RValCal pos <$> call
-            , at pos
-            , unop' pos
+            [ try $ satisfy' (simple pos . unToken)
+            , try $ rec pos
+            , try $ RValCal pos <$> call
+            , try $ at pos
+            , try $ unop' pos
             ]
     choice ls
         where
@@ -366,10 +364,8 @@ simplerval = do
 
             unop' pos = do
                 u <- unop
-                RValUnop pos u <$> expr
-
-            binop' pos =
-                RValBiNop pos <$> expr <*> binop <*> expr
+                e <- expr
+                return $ fixUnop pos u e
 
 call :: Parser (Call SourcePos)
 call = do
@@ -387,28 +383,28 @@ expr :: Parser (Expr SourcePos)
 expr = do
     pos <- getPosition
     choice
-        [ LExpr pos <$> lval
-         -- RExpr pos <$> rval
+        [ try $ RExpr pos <$> rval
+        , try $ LExpr pos <$> lval
         ]
 
 typeT :: Parser (Type SourcePos)
 typeT = do
     pos <- getPosition
     choice
-        [ tok TokIntegerT >> return (TInt pos)
-        , tok TokRealT    >> return (TReal pos)
-        , tok TokBooleanT >> return (TBoolean pos)
-        , tok TokCharT    >> return (TChar pos)
-        , arrayT
-        , refT
+        [ try $ tok TokIntegerT >> return (TInt pos)
+        , try $ tok TokRealT    >> return (TReal pos)
+        , try $ tok TokBooleanT >> return (TBoolean pos)
+        , try $ tok TokCharT    >> return (TChar pos)
+        , try $ arrayT pos
+        , try $ refT pos
         ]
 
     where
-        arrayT = do
+        arrayT pos = do
             tok TokArray
             m <- optionMaybe bracInt
             tok TokOf
-            TArray m <$> typeT
+            TArray pos m <$> typeT
         bracInt = do
             tok TokLBracket
             n <- satisfy' unInt
@@ -416,9 +412,9 @@ typeT = do
             return n
         unInt (At _ (TokNum n)) = Just n
         unInt _                 = Nothing
-        refT = do
+        refT pos = do
             tok TokExp
-            RefT <$> typeT
+            RefT pos <$> typeT
 
 formal :: Parser (Formal SourcePos)
 formal = do
@@ -427,7 +423,10 @@ formal = do
     n <- name
     ns <- commas name
     tok' TokColon
-    Formal pos (isJust m) n ns <$> typeT
+    t <- typeT
+    case (m, t) of
+        (Nothing, TArray {}) -> parserFail "can't pass by value array"
+        _ -> return $ Formal pos (isJust m) (n:ns) t
 
 commas :: Parser a -> Parser [a]
 commas p = many $ do
@@ -450,31 +449,83 @@ unop :: Parser (Unop SourcePos)
 unop = do
     pos <- getPosition
     choice
-        [ tok TokNot   >> return (OpNot pos)
-        , tok TokPlus  >> return (OpPlus pos)
-        , tok TokMinus >> return (OpMinus pos)
+        [ try $ tok TokNot   >> return (OpNot pos)
+        , try $ tok TokPlus  >> return (OpPlus pos)
+        , try $ tok TokMinus >> return (OpMinus pos)
         ]
 
 binop :: Parser (Binop SourcePos)
 binop = do
     pos <- getPosition
     choice
-      [ tok TokPlus >> return (BiPlus pos)
-      , tok TokMinus >> return (BiMinus pos)
-      , tok TokStar >> return (BiStar pos)
-      , tok TokSlash >> return (BiSlash pos)
-      , tok TokDiv >> return (BiDiv pos)
-      , tok TokMod >> return (BiMod pos)
-      , tok TokOr >> return (BiOr pos)
-      , tok TokAnd >> return (BiAnd pos)
-      , tok TokEq >> return (BiEq pos)
-      , tok TokNEq >> return (BiNotEq pos)
-      , tok TokLT >> return (BiLT pos)
-      , tok TokLEq >> return (BiLEq pos)
-      , tok TokGT >> return (BiGT pos)
-      , tok TokGEq >> return (BiGEq pos)
+      [ try $ tok TokPlus >> return (BiPlus pos)
+      , try $ tok TokMinus >> return (BiMinus pos)
+      , try $ tok TokStar >> return (BiStar pos)
+      , try $ tok TokSlash >> return (BiSlash pos)
+      , try $ tok TokDiv >> return (BiDiv pos)
+      , try $ tok TokMod >> return (BiMod pos)
+      , try $ tok TokOr >> return (BiOr pos)
+      , try $ tok TokAnd >> return (BiAnd pos)
+      , try $ tok TokEq >> return (BiEq pos)
+      , try $ tok TokNEq >> return (BiNotEq pos)
+      , try $ tok TokLT >> return (BiLT pos)
+      , try $ tok TokLEq >> return (BiLEq pos)
+      , try $ tok TokGT >> return (BiGT pos)
+      , try $ tok TokGEq >> return (BiGEq pos)
       ]
 
 fromMaybeLs :: Maybe [a] -> [a]
 fromMaybeLs Nothing = []
 fromMaybeLs (Just ls) = ls
+
+isCompleteType :: Type a -> Either String Bool
+isCompleteType = go
+    where
+        go (TInt _) = Right True
+        go (TReal _) = Right True
+        go (TBoolean _) = Right True
+        go (TChar _) = Right True
+        go (RefT _ _) = Right True
+        go (TArray p ms tp) = do
+            b <- isCompleteType tp
+            if b then Right $ isJust ms
+            else Left "Array of type, needs a complete type"
+        go (TNil p) = Left "The time to decide has come. Is Nil a complete type?"
+
+-- Fixes
+
+fixBiRVal :: RVal a -> RVal a
+fixBiRVal r = case r of
+    RValBiNop p1 e1 bi (RExpr p2 (RValBiNop _ e2 bi' e3)) ->
+        if isLeftAssoc bi
+        then RValBiNop p1 (RExpr p1 (fixBiRVal $ RValBiNop p2 e1 bi e2)) bi' (fixBiExpr e3)
+        else r
+    _ -> r
+
+fixBiExpr :: Expr a -> Expr a
+fixBiExpr e = case e of
+    RExpr p (RValBiNop p1 e1 bi (RExpr p2 (RValBiNop _ e2 bi' e3)))
+        -> if isLeftAssoc bi
+           then RExpr p (RValBiNop p1 (RExpr p1 (fixBiRVal $ RValBiNop p2 e1 bi e2)) bi' (fixBiExpr e3))
+           else e
+    _ -> e
+
+fixUnop :: SourcePos -> Unop SourcePos -> Expr SourcePos -> RVal SourcePos
+fixUnop pos u = go
+    where
+        go (RExpr _ (RValBiNop p e1 bi e2)) =
+            RValBiNop pos (RExpr pos (go e1)) bi e2
+        go e = RValUnop pos u e
+
+isLeftAssoc :: Binop a -> Bool
+isLeftAssoc = go
+    where
+        go (BiPlus _ )  = True
+        go (BiMinus _ ) = True
+        go (BiStar _ )  = True
+        go (BiSlash _ ) = True
+        go (BiDiv _ )   = True
+        go (BiMod _ )   = True
+        go (BiOr _ )    = True
+        go (BiAnd _ )   = True
+        go _            = False

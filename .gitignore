@@ -1,5 +1,4 @@
 .stack-work/
-pcl-compiler.cabal
 .stack-work/
 .ghci
 *.hi
