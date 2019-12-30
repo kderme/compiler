@@ -28,9 +28,11 @@ library
                    , Language.PCL.Annotated.Syntax
                    , Language.PCL.Annotated.Environment
                    , Language.PCL.PrettyPrinter
+                   , Language.PCL.Codegen
                    , Language.PCL.Token
                    , Text.Parsec.Tok
                    , Toy.Alex
+                   , Toy.LLVM
   other-modules:
     Paths_pcl_compiler
   hs-source-dirs:
@@ -38,8 +40,11 @@ library
   build-depends:
                      base >=4.7 && <5
                    , array
+                   , bytestring
                    , containers
                    , deepseq
+                   , llvm-hs
+                   , llvm-hs-pure
                    , mtl
                    , parsec
                    , wl-pprint

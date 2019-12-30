@@ -202,16 +202,16 @@ areNumerical _ _ = Left "wrong type of arguments 2"
 
 -- TODO: manual says compare binary represantation of types.
 -- types cannot be arrays.
--- QQ: Can it be reference though??
+-- QQ: Can it be reference??
 eqOrNeq :: Tp -> Tp -> Either String Tp
 eqOrNeq (TInt _) (TInt _)   = Right (TBoolean ())
 eqOrNeq (TReal _) (TInt _)  = Right (TBoolean ())
 eqOrNeq (TInt _) (TReal _)  = Right (TBoolean ())
 eqOrNeq (TReal _) (TReal _) = Right (TBoolean ())
 eqOrNeq (TChar _) (TChar _) = Right (TBoolean ())
+eqOrNeq (TBoolean _) (TBoolean _) = Right (TBoolean ())
 eqOrNeq t t' = Left $ concat
     ["can't compare equality for types ", show t, " and ", show t']
-
 
 infereCall :: Environment -> Call SourcePos -> Either String (Maybe Tp)
 infereCall en (Call p (Name _ n) exprs) = case M.lookup n (env en) of

@@ -9,6 +9,8 @@ import Language.PCL.Annotated.Semantic
 import Language.PCL.Annotated.Syntax
 import Language.PCL.PrettyPrinter
 
+import Toy.LLVM
+
 main :: IO ()
 main = toy "examples/bubblesort.pcl"
 
@@ -34,3 +36,8 @@ toy path = do
     putStrLn "Check Body"
     print $ verifyProgram <$> p
     return ()
+    putStrLn "-------------------------------"
+    putStrLn "LLVM toy"
+---    runJIT myModule
+    print myModule
+    toLLVM myModule

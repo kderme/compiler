@@ -1,0 +1,10 @@
+; ModuleID = 'toy'
+; source_filename = "<string>"
+
+define double @myadd(double %x, double %y) {
+entry:
+  %0 = alloca double
+  %1 = alloca double
+  %2 = fadd double* %0, %0
+  ret double* %2
+}
